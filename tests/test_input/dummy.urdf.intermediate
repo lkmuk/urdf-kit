@@ -1,4 +1,4 @@
-<robot name="placeholder" xmlns:xacro="https://ros.org/wiki/xacro">
+<robot name="placeholder" xmlns:xacro="http://www.ros.org/wiki/xacro">
     <link name="${ns}/l1"/> 
     <link name="${ns}/l2"/>
     <link name="${ns}/l3"/>

@@ -54,7 +54,7 @@ def make_component_def_macro(macro_name: str, intermediate_urdf_root: ET.Element
         </robot>
 
     the resultant xml tree will look like
-    <robot name="xyz" xmlns:xacro="https://ros.org/wiki/xacro">
+    <robot name="xyz" xmlns:xacro="http://ros.org/wiki/xacro">
         <xacro:macro name="mk_firefly" params="ns">
            <!-- stuff copied here! -->
         </xacro:macro>
@@ -63,15 +63,12 @@ def make_component_def_macro(macro_name: str, intermediate_urdf_root: ET.Element
     assert isinstance(macro_name, str)
     assert isinstance(intermediate_urdf_root.attrib["name"], str), "got "+str(intermediate_urdf_root.attrib["name"]) # <-- str() may cause another exception
     xacro_root = ET.Element("robot", name=intermediate_urdf_root.attrib["name"])
-    xacro_root.attrib["xmlns:xacro"] = "https://ros.org/wiki/xacro"
+    xacro_root.attrib["xmlns:xacro"] = "http://www.ros.org/wiki/xacro"
     elem_macro = ET.SubElement(xacro_root, "xacro:macro", name=macro_name, params="ns")
     
     possible_xmlns_rep = (
         "xacro", 
-        r"{http://www.ros.org/wiki/xacro}", 
-        r"{https://www.ros.org/wiki/xacro}",
-        r"{http://ros.org/wiki/xacro}", 
-        r"{https://ros.org/wiki/xacro}",
+        r"{http://www.ros.org/wiki/xacro}",
     )
     for elem in intermediate_urdf_root:
         # TODO test cases for detect xacro:include
