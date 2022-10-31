@@ -2,9 +2,11 @@ import xml.etree.ElementTree as ET
 from sys import exit
 
 # https://docs.ros.org/en/melodic/api/hardware_interface/html/c++/classhardware__interface_1_1JointCommandInterface.html
+# contrary to what https://wiki.ros.org/urdf/XML/Transmission says, 
+# these work also for gazebo_ros_control
 JOINT_CMD_INTERFACE_NAME = {
-    "position": "hardwareInterface/PositionJointInterface",
-    "velocity": "hardwareInterface/VelocityJointInterface",
+    "position": "hardware_interface/PositionJointInterface",
+    "velocity": "hardware_interface/VelocityJointInterface",
     "effort"  : "hardware_interface/EffortJointInterface"
 }
 SUPPORTED_JOINT_CMD_MODE = JOINT_CMD_INTERFACE_NAME.keys()
