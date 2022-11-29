@@ -1,7 +1,7 @@
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from .. misc import format_then_write
+from .. misc import format_then_write, clean_vec3_string, clean_inertia_tensor
 from .. edit_joints import grab_all_joints
 from .. edit_links import rename_link, purge_nonprimitive_collision_geom
 from .. composition import make_component_def_macro
@@ -223,15 +223,33 @@ class generic_xacro_export:
     # you probably don't need to override the members below 
     # ----------------
     def _cleanup_small_values(self):
-        """rounding close-to-zero values inside <origin> as zeros
-        TODO !!! --- motivation --- avoid the diff being cluttered by rounding differences
-        <origin> found in ...
-        # 1. visual, 
-        # 2. collision
-        # 3. joints
+        """rounding close-to-zero values as structural zeros
+        
+        motivations
+        1. **help** improve efficiency in kinematics & dynamics
+          calculation
+        2. avoid the diff being cluttered by rounding differences
         """
-        # print("rounding close-to-zero values inside <origin> as zeros")
-        pass
+        print("Attempting to enforce structural zeros")
+        for elem in self.urdf_root.findall("joint/origin"):
+            elem.attrib['xyz'] = clean_vec3_string(elem.attrib['xyz'], threshold=1e-9)
+            elem.attrib['rpy'] = clean_vec3_string(elem.attrib['rpy'], threshold=1e-8)
+        for elem in self.urdf_root.findall("joint/axis"):
+            elem.attrib['xyz'] = clean_vec3_string(elem.attrib['xyz'], threshold=1e-6)
+
+        for elem in self.urdf_root.findall("link/inertial/origin"):
+            elem.attrib['xyz'] = clean_vec3_string(elem.attrib['xyz'], threshold=1e-9)
+            elem.attrib['rpy'] = clean_vec3_string(elem.attrib['rpy'], threshold=1e-8)    
+        for elem in self.urdf_root.findall("link/visual/origin"):
+            elem.attrib['xyz'] = clean_vec3_string(elem.attrib['xyz'], threshold=1e-9)
+            elem.attrib['rpy'] = clean_vec3_string(elem.attrib['rpy'], threshold=1e-8)
+        for elem in self.urdf_root.findall("link/collision/origin"):
+            elem.attrib['xyz'] = clean_vec3_string(elem.attrib['xyz'], threshold=1e-9)
+            elem.attrib['rpy'] = clean_vec3_string(elem.attrib['rpy'], threshold=1e-8)
+        
+        for elem in self.urdf_root.findall("link/inertial/inertia"):
+            clean_inertia_tensor(elem, threshold=1e-12)
+
     def _reroute_to_base_link(self):
         """Flatten the default tf tree
         

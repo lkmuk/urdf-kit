@@ -34,7 +34,7 @@ def clean_vec3_string(input_str: str, threshold: float = 1e-9) -> str:
     ------------------
     * joint/origin/@xyz
     * joint/origin/@rpy
-    * joint/axis/@rpy (for non-fixed joints)
+    * joint/axis/@xyz (for non-fixed joints)
     * link/inertial/origin/@xyz
     * link/inertial/origin/@rpy
     * link/visual/origin/@xyz
@@ -48,7 +48,7 @@ def clean_vec3_string(input_str: str, threshold: float = 1e-9) -> str:
       cf. `clean_inertia_tensor`
     """
     assert isinstance(input_str,str)
-    assert 1e-7 >= threshold >= 1e-19, "The threshold has to be slightly larger than zero but neither too large!"
+    assert 1e-6 >= threshold >= 1e-19, f"The threshold has to be slightly larger than zero but neither too large! Got {threshold:.3f}"
 
     val_list = input_str.split(" ")
     # just in case, there are some non-sense cases going on
@@ -93,7 +93,7 @@ def clean_inertia_tensor(inertia_elem_ptr: ET.Element, threshold=1e-12) -> None:
         attrib_name = "i"+suffix
         val = inertia_elem_ptr.attrib[attrib_name]
         val = float(val)
-        assert val <= 0, f"moment of inertia shall never be +ve!, got {val:.4e} for {attrib_name}"
-        if val >= -threshold: # note the sign !!!
-            inertia_elem_ptr.attrib[attrib_name]="0" 
-            # make sure to write as string, not fp!!!
+        if abs(val) <= threshold:
+            inertia_elem_ptr.attrib[attrib_name]="0"
+
+    # TODO? checks whether the inertia tensor is +ve definite
