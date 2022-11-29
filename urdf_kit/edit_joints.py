@@ -25,11 +25,6 @@ def grab_all_joints(urdf_root: ET.ElementTree) -> list[joint_entry_T]:
         ))
     return out
 
-
-# TODO zero-out: 
-# set a threshold, e.g. 1e-13, and replace those values with 0,0,0
-# concern: the pose xyz rpy
-
 def grab_expected_joints_handle(urdf_root: ET.ElementTree, joint_names: list[str]) -> list[ET.ElementTree]:
     """ grab all the joint xml handle corresponding to the joint_names list (sorted in the same order)
     You might then want to iterate through the resultant list, for your own needs.
