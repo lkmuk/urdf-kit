@@ -5,7 +5,9 @@ from . import floatList_from_vec3String, vec3String_from_floatList
 
 def get_X_JointChild(joint_elem, joint_angle: float) -> SE3:
     joint_ax_elem = joint_elem.find("axis")
-    joint_ax_xyz = floatList_from_vec3String(joint_ax_elem.get("xyz"))
+    joint_ax_xyz = np.array(floatList_from_vec3String(joint_ax_elem.get("xyz")))
+    axis_norm = np.linalg.norm(joint_ax_xyz) 
+    assert abs(1-axis_norm) < 1e-10, f"Axis for joint [{joint_elem.get('name')}] not normalized (l2 norm = {axis_norm})!"   
     return SE3.AngleAxis(theta=joint_angle, v=joint_ax_xyz, unit='rad')
 
 def get_X_ParentJoint(joint_elem) -> SE3:
