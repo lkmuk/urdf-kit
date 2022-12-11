@@ -24,7 +24,7 @@ def print_urdf(urdf_root: ET.ElementTree):
 #   xml serialization requires every attribute (and text) to be a string
 #   below are some helper functions
 # ===============================================
-def floatList_from_vec3String(input_str: str) ->  list[float]:
+def stringList_from_vec3String(input_str: str) ->  list[str]:
     assert isinstance(input_str,str)
     val_list = input_str.split(" ")
     # just in case, there are some non-sense cases going on
@@ -36,10 +36,13 @@ def floatList_from_vec3String(input_str: str) ->  list[float]:
         val_list.remove('')
     assert len(val_list)==3, "Expect exactly three floating point numbers in the input string!"
     return val_list
-
-def vec3String_from_floatList(val_list: list) -> str:
+def floatList_from_vec3String(input_str: str) ->  list[float]:
+    return [float(string) for string in stringList_from_vec3String(input_str)]
+def vec3String_from_stringList(val_list: list[str]) -> str:
     assert len(val_list) == 3
     return " ".join(val_list)
+def vec3String_from_floatList(val_list: list[float]) -> str:
+    return vec3String_from_stringList([str(data) for data in val_list])
 
 # =======================================
 #  sanitizing the URDF
@@ -75,7 +78,7 @@ def clean_vec3_string(input_str: str, threshold: float = 1e-9) -> str:
     """
     assert 1e-6 >= threshold >= 1e-19, f"The threshold has to be slightly larger than zero but neither too large! Got {threshold:.3f}"
 
-    val_list = floatList_from_vec3String(input_str)
+    val_list = stringList_from_vec3String(input_str)
     for i in  range(3):
         val = float(val_list[i]) # will throw an ValueError if val_list is sth crazy e.g. '1,0', '-', '3.3.3' ,...
         if abs(val) <= threshold:
@@ -83,7 +86,7 @@ def clean_vec3_string(input_str: str, threshold: float = 1e-9) -> str:
         # # just keep how it is
         # else:
         #    val_list[i] = f"{val_list[i]:.3e}"
-    return vec3String_from_floatList(val_list)
+    return vec3String_from_stringList(val_list)
 
 
 def clean_inertia_tensor(inertia_elem_ptr: ET.Element, threshold=1e-12) -> None:
