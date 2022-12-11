@@ -16,6 +16,7 @@ joint_elem = None
 for candidate in  urdf_root.findall("joint"):
     if candidate.get("name") == "lbr_iiwa_joint_4":
         joint_elem = candidate
+        break
 assert joint_elem is not None
 fix_revolute_joint(
     joint_elem, 

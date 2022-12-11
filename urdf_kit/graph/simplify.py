@@ -1,6 +1,7 @@
 from xml.etree import ElementTree as ET
 
 from . import get_X_JointChild, get_X_ParentJoint, write_origin
+from . import remove_subelement_by_tag
 
 def fix_revolute_joint(joint_elem: ET.Element, joint_angle: float, verbose=False) -> None:
     """freeze the given revolute joint
@@ -15,11 +16,12 @@ def fix_revolute_joint(joint_elem: ET.Element, joint_angle: float, verbose=False
     name = joint_elem.get("name")
     if verbose:
         print("  fixing joint", name, f"to {joint_angle:.3f} radian")
-    assert joint_elem.get("type") == "revolute", f"joint '{name}' is of type {joint_elem.get('type')}"
+    assert joint_elem.get("type") in ("revolute","continuous"), f"joint '{name}' is of type {joint_elem.get('type')}"
     
-    lb = float(joint_elem.find("limit").get("lower")) 
-    ub = float(joint_elem.find("limit").get("upper"))
-    assert lb <= joint_angle <= ub, f"This joint angle should be within {lb} and {ub} but you gave {joint_angle}"
+    if joint_elem.get("type") == "revolute":
+        lb = float(joint_elem.find("limit").get("lower")) 
+        ub = float(joint_elem.find("limit").get("upper"))
+        assert lb <= joint_angle <= ub, f"This joint [{joint_elem.get('name')}]'s angle should be within {lb} and {ub} but you gave {joint_angle}!!!"
 
     X_ParentChild = get_X_ParentJoint(joint_elem) * get_X_JointChild(joint_elem, joint_angle)
 
@@ -29,11 +31,8 @@ def fix_revolute_joint(joint_elem: ET.Element, joint_angle: float, verbose=False
     # 2. update robot/joint/@type
     joint_elem.attrib["type"] = 'fixed'
     # 3. remove irrelevant subelements
-    joint_elem.remove(joint_elem.find("axis"))
-    joint_elem.remove(joint_elem.find("limit"))
-    dyn_elem = joint_elem.find("dynamics")
-    if dyn_elem is not None:
-        joint_elem.remove(dyn_elem)
+    for tag in ("axis", "mimic", "limit", "dynamics", "joint_properties"):
+        remove_subelement_by_tag(joint_elem, tag)
     
 
 def merge_fixed_joints(xml_root: ET.Element, link_whitelist: list[str]):

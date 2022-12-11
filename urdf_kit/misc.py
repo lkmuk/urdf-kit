@@ -8,7 +8,12 @@ def format_then_write(urdf_root: ET.ElementTree, fpath: str):
     with open(fpath, "wb") as f: # make no mistake it's 'wb' not 'w'
         f.write(ET.tostring(urdf_root) ) # requires Python 3.9+
 
-
+def remove_subelement_by_tag(parent_elem: ET.Element, tag: str):
+    """
+    notes: will remove all occurence, okay to not exist.
+    """
+    for candidate in parent_elem.findall(tag):
+        parent_elem.remove(candidate)
 
 
 def print_urdf(urdf_root: ET.ElementTree):
