@@ -110,7 +110,7 @@ class generic_xacro_export:
         
         assert hasattr(xacro_output_list, "__iter__"), "Expect a list/ tuple of export_target_spec"
         for output_spec in xacro_output_list:
-            assert isinstance(output_spec, export_target_spec)
+            assert issubclass(type(output_spec), export_target_spec)
         self.xacro_output_list = xacro_output_list
 
         # URDF-native data shall go to the "config.json" used by Onshape-to-Robot (OTR)
