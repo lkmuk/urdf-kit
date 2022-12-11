@@ -1,5 +1,6 @@
+from __future__ import annotations
 from xml.etree import ElementTree as ET
-from .edit_joints import grab_all_joints
+from . import grab_all_joints
 
 def format_then_write(urdf_root: ET.ElementTree, fpath: str):
     # self.tree.write(fpath)  # no autoformat
@@ -19,6 +20,31 @@ def print_urdf(urdf_root: ET.ElementTree):
     for joint_entry in grab_all_joints(urdf_root):
         print(joint_entry)
 
+# ===============================================
+#   xml serialization requires every attribute (and text) to be a string
+#   below are some helper functions
+# ===============================================
+def floatList_from_vec3String(input_str: str) ->  list[float]:
+    assert isinstance(input_str,str)
+    val_list = input_str.split(" ")
+    # just in case, there are some non-sense cases going on
+    assert len(val_list)>=3, "There should be exactly 3 floating point numbers in the input string!"
+
+    # just in case there are some contiguous whitespace and/or trailing spaces
+    assert len(val_list)<=20, "Probably too many whitespaces in the input string? The input string is "+input_str
+    while '' in val_list:
+        val_list.remove('')
+    assert len(val_list)==3, "Expect exactly three floating point numbers in the input string!"
+    return val_list
+
+def vec3String_from_floatList(val_list: list) -> str:
+    assert len(val_list) == 3
+    return " ".join(val_list)
+
+# =======================================
+#  sanitizing the URDF
+#  TODO move it to another file?
+# =======================================
 def clean_vec3_string(input_str: str, threshold: float = 1e-9) -> str:
     """reinstate structural zeros + beautify a string of 3 fp numbers
     First the string is parsed into a list of 3 floating-point numbers,
@@ -47,19 +73,9 @@ def clean_vec3_string(input_str: str, threshold: float = 1e-9) -> str:
     * link/inertial/inertia/@i(xx|yy|zz|xy|yz|xz) 
       cf. `clean_inertia_tensor`
     """
-    assert isinstance(input_str,str)
     assert 1e-6 >= threshold >= 1e-19, f"The threshold has to be slightly larger than zero but neither too large! Got {threshold:.3f}"
 
-    val_list = input_str.split(" ")
-    # just in case, there are some non-sense cases going on
-    assert len(val_list)>=3, "There should be exactly 3 floating point numbers in the input string!"
-
-    # just in case there are some contiguous whitespace and/or trailing spaces
-    assert len(val_list)<=20, "Probably too many whitespaces in the input string? The input string is "+input_str
-    while '' in val_list:
-        val_list.remove('')
-    assert len(val_list)==3, "Expect exactly three floating point numbers in the input string!"
-
+    val_list = floatList_from_vec3String(input_str)
     for i in  range(3):
         val = float(val_list[i]) # will throw an ValueError if val_list is sth crazy e.g. '1,0', '-', '3.3.3' ,...
         if abs(val) <= threshold:
@@ -67,7 +83,7 @@ def clean_vec3_string(input_str: str, threshold: float = 1e-9) -> str:
         # # just keep how it is
         # else:
         #    val_list[i] = f"{val_list[i]:.3e}"
-    return " ".join(val_list)
+    return vec3String_from_floatList(val_list)
 
 
 def clean_inertia_tensor(inertia_elem_ptr: ET.Element, threshold=1e-12) -> None:
