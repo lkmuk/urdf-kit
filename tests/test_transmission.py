@@ -11,8 +11,11 @@ def test_mk_simple_transmission_elem_should_pass(joint_name, mode):
 
 @pytest.mark.parametrize("joint_name,mode",(("dummy1","Position"),("dummy2","torque")))
 def test_mk_simple_transmission_elem_should_fail(joint_name, mode):
-    with pytest.raises(SystemExit) as e:
+    with pytest.raises(ValueError) as e:
         tx_elem = make_simple_transmission_elem(joint_name, mode)
         ET.indent(tx_elem)
         print(ET.tostring(tx_elem).decode())
-    assert e.value.code == -404
+    # assert e.value.code == -404
+
+if __name__ == "__main__":
+    _ = make_simple_transmission_elem("abc", mode="funny") # watch it fail 

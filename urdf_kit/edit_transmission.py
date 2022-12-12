@@ -1,6 +1,6 @@
 import xml.etree.ElementTree as ET
 from sys import exit
-
+from . import color_code
 # https://docs.ros.org/en/melodic/api/hardware_interface/html/c++/classhardware__interface_1_1JointCommandInterface.html
 # contrary to what https://wiki.ros.org/urdf/XML/Transmission says, 
 # these work also for gazebo_ros_control
@@ -30,14 +30,12 @@ def make_simple_transmission_elem(
         assert isinstance(actuator_name, str), " got "+str(type(actuator_name))
 
     assert isinstance(mode, str), " got "+str(type(mode))
-    try:
-        assert mode in SUPPORTED_JOINT_CMD_MODE
-    except AssertionError:
-        print("Error! Supported mode(s) are: ")
+    if mode not in SUPPORTED_JOINT_CMD_MODE:
+        txt = color_code['r']+"Error! Supported mode(s) are: \n"
         for mode_name in SUPPORTED_JOINT_CMD_MODE:
-            print("   ", mode_name)
-        print("You gave: "+mode)
-        exit(-404)
+            txt+="   "+mode_name+"\n"
+        txt +="You gave: "+mode+"\n"+color_code['w']
+        raise ValueError(txt)
 
     elem = ET.Element("transmission", name=tx_name)
 
@@ -59,10 +57,3 @@ def make_simple_transmission_elem(
     mechRed_elem.text="1" # let's make it very clear, it has to be a string!
 
     return elem
-
-def test_mk_simple_transmission_elem(mode):
-    tx_elem = make_simple_transmission_elem(r"${ns}/dummy", mode)
-    ET.indent(tx_elem)
-    print(ET.tostring(tx_elem).decode())
-if __name__ == "__main__":
-    test_mk_simple_transmission_elem(mode="position")
