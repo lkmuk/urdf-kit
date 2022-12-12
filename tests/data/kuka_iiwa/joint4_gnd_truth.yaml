@@ -1,0 +1,19 @@
+robot: "kuka iiwa" 
+joint_name: "lbr_iiwa_joint_4" 
+# some SE3 ground truth data for regression testing
+# hindsight: the test case happens to be too regular...
+X_ParentJoint:
+  - [1.0, 0.0, 0.0, 0.0]
+  - [0.0, 0.0, -1.0, 0.0]
+  - [0.0, 1.0, 0.0, 0.2155]
+  - [0, 0, 0, 1] # plz just copy it
+X_ParentCparent:
+  - [1.,  0.,  0.,  0        ]
+  - [0.,  1.,  0.,  0.03     ]
+  - [0.,  0.,  1.,  0.13     ]
+  - [0, 0, 0, 1] # plz just copy it
+X_CparentCchild:
+  - [1.,  0.,  0.,  0        ]
+  - [0.,  0.,  -1.,  -0.064]
+  - [0.,  1.,  0.,  0.1525     ]
+  - [0, 0, 0, 1] # plz just copy it

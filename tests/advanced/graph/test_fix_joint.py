@@ -4,7 +4,7 @@ from math import pi
 
 import xml.etree.ElementTree as ET
 from pathlib import Path
-data_dir = (Path(__file__).resolve().parent/".."/"data"/"kuka_iiwa").resolve()
+data_dir = (Path(__file__).resolve().parent/".."/".."/"data"/"kuka_iiwa").resolve()
 
 src_urdf_path = data_dir/"model.urdf"
 new_urdf_path = data_dir/"fixed_joint_4.urdf" # should be the same dir

@@ -1,7 +1,9 @@
 import pytest
-from urdf_kit.maths import get_X_JointChild, get_X_ParentJoint
-from urdf_kit.maths import write_origin
-from urdf_kit.misc import floatList_from_vec3String
+from urdf_kit.edit_links import grab_elems_dict_by_joint_name
+from urdf_kit.maths import get_X_JointChild, get_X_ParentJoint, get_X_CparentCchild
+from urdf_kit.maths import write_origin, get_origin
+
+from urdf_kit.misc import floatList_from_vec3String # for implementing the tests, which is not perfect.
 
 import xml.etree.ElementTree as ET
 from xml.etree.ElementTree import Element
@@ -45,6 +47,10 @@ def standalone_joint_fixture():
 # def standalone_origin_fixture():
 #     return standalone_origin()
 
+@pytest.mark.skip(reason="already some basic smoke test for `get_X_ParentJoint` which depends on `get_origin`")
+def test_get_origin(standalone_joint_fixture):
+    raise NotImplementedError()
+    # TODO
 
 def test_get_X_ParentJoint_NoCrash(standalone_joint_fixture):
     # For now, just want to see that at least it runs without crashing
@@ -55,6 +61,20 @@ def test_get_X_ParentJoint_NoCrash(standalone_joint_fixture):
 def test_get_X_JointChild_NoCrash(standalone_joint_fixture):
     joint_elem = standalone_joint_fixture[0]
     res = get_X_JointChild(joint_elem, 0.2)
+
+def test_get_X_Centersofmass(kuka_iiwa_joint4):
+    test_input = kuka_iiwa_joint4 # the fixture, see `conftest.py`
+    expected_res = test_input["X_CparentCchild"]
+    urdf_root = test_input['urdf_root']
+    joint_name = test_input['joint_name']
+
+    # the API
+    # result = get_X_CparentCchild(joint_elem, parent_elem, child_elem)
+    result = get_X_CparentCchild(**grab_elems_dict_by_joint_name(urdf_root, joint_name))
+
+    # really nice that the spatialmath library overloaded == (`__eq__`)
+    # `==` means identity up to rounding error
+    assert expected_res == result
 
 def test_write_origin(standalone_joint_fixture):
     joint_elem = standalone_joint_fixture[0]
