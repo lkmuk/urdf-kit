@@ -1,6 +1,39 @@
-from . edit_joints import grab_all_joints, joint_entry_T
+from . edit_joints import grab_all_joints, joint_entry_T, grab_expected_joints_handle
 from xml.etree import ElementTree as ET
 
+################################
+# reading stuff out
+################################
+def grab_link_elem_by_name(urdf_root: ET.Element, link_name: str) -> ET.Element:
+    assert isinstance(link_name, str), f"got {type(link_name)}"
+    for candidate in urdf_root.findall("link"):
+        if candidate.get("name") == link_name:
+            return candidate
+    raise ValueError(f"The desired link [{link_name}] cannot be found!")   
+
+def grab_elems_dict_by_joint_name(urdf_root: ET.Element, joint_name: str) -> dict[ET.Element]:
+    """a convenience function
+    return
+    ---------
+    out: dict with the following keys
+        * joint_elem
+        * parent_elem
+        * child_elem
+        Each "value" is actually a XML element handle.
+    """
+    assert isinstance(joint_name, str), f"got {type(joint_name)}"
+    joint_elem = grab_expected_joints_handle(urdf_root, [joint_name])[0]
+    
+    child_name = joint_elem.find("child").get("link")
+    parent_name = joint_elem.find("parent").get("link")
+
+    parent_elem = grab_link_elem_by_name(urdf_root, link_name=parent_name)
+    child_elem = grab_link_elem_by_name(urdf_root, link_name=child_name)
+    return dict(joint_elem=joint_elem, parent_elem=parent_elem, child_elem=child_elem)
+
+################################
+# modifier
+################################
 def rename_link(urdf_root_ptr: ET.ElementTree, link_name_old: str, link_name_new: str) -> None:
     """update the entries in both <link> and <joint>(s) that reference that link
 
