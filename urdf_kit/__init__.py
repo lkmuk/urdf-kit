@@ -1,5 +1,6 @@
 from .edit_joints import grab_all_joints
 from . import misc
+from .misc import color_code
 
 from . import maths
 from . import graph

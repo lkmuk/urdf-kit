@@ -121,3 +121,12 @@ def clean_inertia_tensor(inertia_elem_ptr: ET.Element, threshold=1e-12) -> None:
             inertia_elem_ptr.attrib[attrib_name]="0"
 
     # TODO? checks whether the inertia tensor is +ve definite
+
+################################
+# https://stackoverflow.com/questions/27265322/how-to-print-to-console-in-color
+################################
+color_code = {
+    'w': '\033[0m',  # white (normal)
+    'r': '\033[31m', # red
+    'g': '\033[32m', # green
+}

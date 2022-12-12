@@ -9,12 +9,7 @@ from .. composition import make_component_def_macro
 from typing import Union
 from sys import exit
 
-# https://stackoverflow.com/questions/27265322/how-to-print-to-console-in-color
-color_code = {
-    'w': '\033[0m',  # white (normal)
-    'r': '\033[31m', # red
-    'g': '\033[32m', # green
-}
+from . import color_code
 
 #
 # TODO documentation about this automation framework

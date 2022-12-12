@@ -41,9 +41,9 @@ def standalone_origin() -> Element:
 @pytest.fixture(scope="function")
 def standalone_joint_fixture():
     return standalone_joint()
-@pytest.fixture(scope="function")
-def standalone_origin_fixture():
-    return standalone_origin()
+# @pytest.fixture(scope="function")
+# def standalone_origin_fixture():
+#     return standalone_origin()
 
 
 def test_get_X_ParentJoint_NoCrash(standalone_joint_fixture):
@@ -74,6 +74,15 @@ def test_write_origin(standalone_joint_fixture):
     new_xyz = np.array(floatList_from_vec3String(origin_elem.get("xyz")))
     np.testing.assert_allclose(new_xyz, expected_xyz)
 
+def test_write_origin_catchInvalidInput(standalone_joint_fixture):
+    joint_elem = standalone_joint_fixture[0]
+
+    # preparing an invalid input
+    not_really_origin_elem = joint_elem.find("axis") 
+    # some dummy SE3
+    X = get_X_ParentJoint(joint_elem)
+    with pytest.raises(ValueError) as e:
+        write_origin(not_really_origin_elem, X)
 
 
 if __name__ == "__main__":
