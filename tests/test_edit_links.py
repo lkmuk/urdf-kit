@@ -17,4 +17,5 @@ def test_rename():
     print("\n\n========= after ============== ")
     print_urdf(root)
 
-test_rename()
+if __name__ == "__main__":
+    test_rename()
