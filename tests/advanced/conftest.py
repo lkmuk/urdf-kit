@@ -1,6 +1,30 @@
 import pytest
+from pathlib import Path
 import numpy as np
 from spatialmath import SE3
+
+@pytest.fixture()
+def biped_tree() -> dict:
+    test = dict()
+    
+    data_dir = (Path(__file__).resolve().parent/".."/"data").resolve()
+
+    import xml.etree.ElementTree as ET
+    urdf_root = ET.parse(data_dir/"biped2d_pybullet.urdf").getroot()
+    test["urdf_root"] = urdf_root
+    
+    test["expected_res"] = dict(
+        world = ['y_prismatic'],
+        y_prismatic = ['z_prismatic'],
+        z_prismatic = ['torso'],
+        torso = ['r_upperleg', 'l_upperleg'],
+        r_upperleg = ['r_lowerleg'],
+        l_upperleg = ['l_lowerleg'],
+        l_lowerleg = ['l_foot'],
+        r_lowerleg = ['r_foot'],
+    )
+    test['root_link_name'] = 'world'
+    return test
 
 @pytest.fixture(scope="function")
 def kuka_iiwa_joint4() -> dict:

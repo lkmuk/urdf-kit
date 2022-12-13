@@ -1,4 +1,4 @@
-from . edit_joints import grab_all_joints, joint_entry_T, grab_expected_joints_handle
+from . edit_joints import grab_all_joints, grab_expected_joints_handle
 from xml.etree import ElementTree as ET
 
 ################################
