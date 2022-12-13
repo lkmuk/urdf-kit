@@ -9,4 +9,4 @@ from ..misc import color_code
 from . import transforms
 from .transforms import *
 
-# from . import inertial
+from . import inertial

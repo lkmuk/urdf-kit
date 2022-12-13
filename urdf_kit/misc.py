@@ -129,4 +129,5 @@ color_code = {
     'w': '\033[0m',  # white (normal)
     'r': '\033[31m', # red
     'g': '\033[32m', # green
+    'o': '\033[33m', # orange
 }
