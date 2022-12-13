@@ -64,7 +64,7 @@
       <origin rpy="0 0 0" xyz="-0.1 0 0.07"/>
       <!--Increase mass from 5 Kg original to provide a stable base to carry the
           arm.-->
-      <mass value="0.0"/>
+      <mass value="5.0"/>
       <inertia ixx="0.05" ixy="0" ixz="0" iyy="0.06" iyz="0" izz="0.03"/>
     </inertial>
     <visual>
@@ -286,4 +286,3 @@
   </link>
   
 </robot>
-

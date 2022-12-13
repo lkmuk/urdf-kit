@@ -33,7 +33,7 @@ if __name__ == "__main__":
     # just to block the control flow.
     prompt = "Are you happy? Type yes to exit: "
     ans = ""
-    while ans not in ('y','Y'):
+    while ans not in ('yes', 'y','Y'):
         ans = input(prompt)
 else:
     p.disconnect()
