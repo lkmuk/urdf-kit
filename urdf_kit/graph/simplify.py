@@ -35,20 +35,7 @@ def fix_revolute_joint(joint_elem: ET.Element, joint_angle: float, verbose=False
         remove_subelement_by_tag(joint_elem, tag)
     
 
-def merge_fixed_joints(xml_root: ET.Element, link_whitelist: list[str]):
-    """ (in-place modification of the entire URDF)
-    
-    By merging fixed joints, we get a simpler graph,
-    which is advantageous to kinematics/ dynamics calculation.
-
-    You might want to retain some links, e.g. end-effector, camera optical frame etc.
-    You can then specify them in the whitelist.
-    Note that you will get an warning at the end, 
-    if any of those on the whitelist are NOT found. 
-    This should help identify bugs early on.
-
-    Before that, you might want to first perform 
-    `fix_revolute_joint` on some joints (e.g. those on a gripper)?
-    """
-    raise NotImplementedError()
-    # throw a warning if any link in the whitelist is not found
+"""merge_fixed_joints
+such operation is 
+implemented in the `urdf_kit.graph.tree.kinematic_tree` instead.
+"""

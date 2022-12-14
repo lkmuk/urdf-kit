@@ -3,8 +3,10 @@ from xml.etree.ElementTree import Element
 from spatialmath import SE3
 from collections import deque
 
-from . import get_X_ParentJoint
+from . import get_X_ParentJoint, get_origin, write_origin
 from . import grab_all_joints, grab_link_elem_by_name
+from .simplify import fix_revolute_joint
+from . import body_inertial_urdf
 from .. import color_code
 
 def calc_descendent_adjacency(urdf_root: Element) -> dict[list[str]]:
@@ -75,9 +77,6 @@ class body_entry:
         assert joint_elem.find("child").get("link") == this_link_elem.get("name")
         self.joint_elem = joint_elem
         self.this_link_elem = this_link_elem
-
-        # more cache
-        self.X_ParentJoint = get_X_ParentJoint(self.joint_elem)
     
     def __str__(self):
         return self.this_link_elem.get("name")
@@ -106,12 +105,16 @@ class body_entry:
         return self.joint_elem.get("type")
     def is_fixed_wrt_parent(self) -> bool:
         return self.joint_type == "fixed"
+    @property
+    def X_ParentJoint(self) -> SE3:
+        return get_X_ParentJoint(self.joint_elem)
     def get_X_ParentChild(self, *args) -> SE3:
         if self.is_fixed_wrt_parent():
-            return self.X_ParentJoint
+            return get_X_ParentJoint(self.joint_elem)
         else:
             raise NotImplementedError("At the moment, only fixed-type joint. Yours is "+self.joint_type+".")
-
+    def fix_revolute_joint(self, joint_angle: float):
+        fix_revolute_joint(self.joint_elem, joint_angle, verbose=True)
 
 # class link_entry(joint_entry_T):
 class kinematic_tree:
@@ -172,11 +175,17 @@ class kinematic_tree:
         table = calc_descendent_adjacency(self.urdf_root)
         return [self.links[descendent_link_name] for descendent_link_name in table[link_name] ]
 
-    def is_leaf_link(self, link_name: str) -> bool:
+    def _is_leaf_link(self, link_name: str, return_table: bool = False) -> tuple [bool, dict[list[str]] ]:
         assert isinstance(link_name,str)
         assert link_name in self.links.keys(), "got "+link_name+", recognized links:"+str(self.links.keys())
-        table = calc_descendent_adjacency(self.urdf_root)
-        return not link_name in table.keys()
+        adjacency_table = calc_descendent_adjacency(self.urdf_root)
+        ans = not link_name in adjacency_table.keys()
+        if return_table:
+            return ans, adjacency_table
+        else:
+            return ans
+    def is_leaf_link(self, link_name: str)-> bool:
+        return self._is_leaf_link(link_name, return_table=False)
 
     def __len__(self):
         return len(self.links.keys())
@@ -229,3 +238,133 @@ class kinematic_tree:
             if show_SE3:
                 print("   X_ParentJoint =")
                 print(this_link_entry.X_ParentJoint)
+    def merge_fixed_joints(self, link_whitelist: list[str] =[]):
+        """ in-place modification of the XML data as well as this object. 
+        
+        By merging fixed joints, we get a simpler graph,
+        which is advantageous to kinematics/ dynamics calculation.
+
+        You might want to retain some links, e.g. end-effector, camera optical frame etc.
+        You can then specify them in the whitelist.
+        Note that you will get an warning 
+        if any of those on the whitelist are NOT found. 
+        This should help identify bugs early on.
+
+        Before that, you might want to first perform 
+        `urdf_kit.graph.simplify.fix_revolute_joint` on some joints (e.g. those on a gripper)?
+
+        Description
+        -------------------
+        scan for all fixed joints that shall be removed
+        for each fixed joint (and the link) to be removed
+            1. update joints spawning out of this link
+            2. move its visual and collision elements one link up.
+            3. "move" its <inertial> data one link up.
+            
+            4. remove xml element of the joint and element
+            BY removing the associated link entry (self.links)
+            TODO warn the user if other types of elements, e.g. <transmission>, 
+            make references to the deleted joint/ element, or when the <link> element still contains stuff
+        """
+        print("="*50)
+        print("Attempting to remove fixed joints as much as possible")
+        print("="*50)
+        for link_to_keep in link_whitelist:
+            assert isinstance(link_to_keep, str), "got "+type(link_to_keep)
+            assert link_to_keep in self.links.keys(), link_to_keep+" is not a link name for this robot!"
+            assert self.links[link_to_keep].is_fixed_wrt_parent(), link_to_keep+" is NOT fixed wrt its parent link! Nothing to whitelist! Or is it a mistake?"
+        
+        pending_list = []
+        for candidate_link_name in self.links.keys():
+            if candidate_link_name in link_whitelist:
+                print("ignoring this fixed joint: ", self.links[candidate_link_name].describe_connection())
+                continue
+            if candidate_link_name == self.root_name:
+                continue # to avoid key-error below
+            if self.links[candidate_link_name].is_fixed_wrt_parent():
+                pending_list.append(candidate_link_name)    
+        if len(pending_list) == 0:
+            print("no fixed joints to be removed!")
+            return
+        else:
+            print("Preview: ")
+            print(" We will remove these joints (and the associated link) in a careful manner!")
+            print(" (format: ", body_entry.describe_connection_format(), ")")
+            for link_name in pending_list:
+                print(self.links[link_name].describe_connection())
+        
+        for linkName_Removee in pending_list:
+            jointElem_Removee = self.links[linkName_Removee].joint_elem
+            linkName_Newparent = jointElem_Removee.find("parent").get("link")
+            # fixed joint means removee's joint frame == removee's link frame
+            X_NewparentRemovee = self.links[linkName_Removee].X_ParentJoint
+            # X_NewparentRemovee = self.links[linkName_Newparent].X_ParentJoint  # oops...
+            
+            # reroute the joints that spawn joints spawning out of this link
+            # (adjacency table would become inconsistent so regenerate it on demand)
+            # TODO: scheduling of the order to remove the links, 
+            #       thereby eliminating the need to recalculate adjacency
+            removee_is_leaf, adjTab = self._is_leaf_link(linkName_Removee, return_table=True) # oops...
+            if not removee_is_leaf:
+                for linkName_Grandchild in adjTab[linkName_Removee]:
+                    # under the hood, modifying the XML contents
+                    # nothing needs to be changed in `self.links`
+                    jointElem_Granchild = self.links[linkName_Grandchild].joint_elem
+                    # 1. update <joint/parent/@link>
+                    jointElem_Granchild.find("parent").attrib["link"] = linkName_Newparent
+                    # 2  update <joint/origin>
+                    X_RemoveeGrandchildjoint = self.links[linkName_Grandchild].X_ParentJoint
+                    X_NewparentGrandchild = X_NewparentRemovee @ X_RemoveeGrandchildjoint
+                    write_origin(jointElem_Granchild.find("origin"), X_NewparentGrandchild)
+                    # other contents of this <joint> remains untouched
+            del adjTab # to avoid accidentally reusing such inconsistent data.
+            
+            # move its visual and collision elements one link up.
+            # which also doesn't harm the consistency of `self.links`
+            linkElem_Removee = self.links[linkName_Removee].this_link_elem
+            linkElem_Newparent = self.urdf_root.find(f"link/[@name='{linkName_Newparent}']")
+            #
+            # properly should have chosen lxml ???
+            # for subElem_Removee in linkElem_Removee.findall("."): # wrong!
+                # if subElem_Removee.tag not in ("visual", "collision"):
+                #     continue
+                # do the stuff
+            # some patchy solution
+            def move_geom_elem_up_one_level(geom_elem: Element):
+                # 1. update the pose accordingly
+                originElem = geomElem_Removee.find("origin")
+                if originElem is None:
+                    # URDF spec: <origin> is optional for <visual> and <collision> 
+                    X_RemoveeGeom = SE3.Tx(0) # identity 
+                else:
+                    X_RemoveeGeom = get_origin(originElem)
+                X_NewparentGeom = X_NewparentRemovee @ X_RemoveeGeom
+                write_origin(originElem, X_NewparentGeom)
+                # 2. detach the element from that link
+                linkElem_Removee.remove(geomElem_Removee)
+                # 3. attach the modified elem to the new parent link
+                linkElem_Newparent.append(geomElem_Removee)
+            for geomElem_Removee in linkElem_Removee.findall("visual"):
+                move_geom_elem_up_one_level(geomElem_Removee)
+            for geomElem_Removee in linkElem_Removee.findall("collision"):
+                move_geom_elem_up_one_level(geomElem_Removee)
+
+            # move its inertial data upstream
+            isdummy_Removee = linkElem_Removee.find("inertial") is None
+            isdummy_Newparent = linkElem_Newparent.find("inertial") is None
+            inertial_Removee = body_inertial_urdf(linkElem_Removee, isdummy_Removee)
+            inertial_Newparent = body_inertial_urdf(linkElem_Newparent, isdummy_Newparent)
+            inertial_Newparent.fuse_child_link(jointElem_Removee, inertial_Removee)
+
+            # TODO warn the user if other types of elements, e.g. <transmission>, 
+            # make references to the deleted joint/ element, or when the <link> element still contains stuff
+            #
+            # remove xml element of the joint and element
+            # BY removing the associated link entry (self.links)
+            print(color_code['r'])
+            print(f"removing link [{linkName_Removee}] and its associated joint [{jointElem_Removee.get('name')}]")
+            print(color_code['w'])
+            self.urdf_root.remove(linkElem_Removee)
+            self.urdf_root.remove(jointElem_Removee)
+            del self.links[linkName_Removee] # to maintain consistence
+            
