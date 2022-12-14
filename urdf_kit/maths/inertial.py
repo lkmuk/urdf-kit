@@ -11,6 +11,17 @@ from spatialmath import SE3
 
 __all__ = ['body_inertial_urdf']
 
+def _make_dummy_inertial_elem() -> Element:
+    inertial_elem = Element("inertial")
+    subelems = (
+        Element("mass", value="0"),
+        Element("origin", xyz="0 0 0", rpy="0 0 0"),
+        Element("inertia", ixx="0", iyy="0", izz="0", ixy="0", ixz="0", iyz="0")    
+    )
+    for subelem in subelems:
+        inertial_elem.append(subelem)
+    return inertial_elem
+
 class body_inertial_urdf:
     def __init__(self, link_elem: Element, is_dummy: bool = False):
         """inertial properties of a rigid body, with focus on URDF processing
@@ -38,7 +49,7 @@ class body_inertial_urdf:
             # also fine to have an empty inertia element according to URDF specification
             # let's create one to faciliate coding.
             assert link_elem.find("inertial") is None, "A dummy link probably shouldn't have a inertial element?"
-            self._inertial_elem = Element("inertial")
+            self._inertial_elem = _make_dummy_inertial_elem()
             self._link_elem.insert(0, self._inertial_elem)
             self.make_inertial_data_dummy()
         else:
