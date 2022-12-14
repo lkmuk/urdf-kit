@@ -180,37 +180,52 @@ class kinematic_tree:
 
     def __len__(self):
         return len(self.links.keys())
+
+    def get_root_link_name(self):
+        return self.root_name
+    _sorting_method = (
+        "depth_first",
+        "breadth_first"
+    )
+    def gen_sorted_list_topdown(self, method='depth_first') -> iter[str]:
+        """
+        Notice that the root element will never be returned.
+        """
+        assert isinstance(method,str)
+        assert method in kinematic_tree._sorting_method
+
+        table = calc_descendent_adjacency(self.urdf_root)
+        # initialize the buffer with those/ that directly under the root link
+        buffer = deque(table[self.root_name]) # list[str]
+        while len(buffer) > 0:
+            # visit this link
+            this_link_name =  buffer.pop()
+            
+            # expand this link's descendence
+            if this_link_name in table.keys(): # i.e.  not leaf node
+                for child_link_name in table[this_link_name]:
+                    if method == 'depth_first':
+                        buffer.append(child_link_name)
+                    elif method == 'breadth_first':
+                        buffer.appendleft(child_link_name)
+                    else:
+                        raise NotImplementedError()
+            
+            yield this_link_name
     
     def print_graph(self, link_sorting='depth_first', show_SE3=False):
         """
         supported link_sorting method: breadth_first and depth_first
         """
-        assert link_sorting in ('depth_first', 'breadth_first')
         table = calc_descendent_adjacency(self.urdf_root)
         print("-"*30)
         print("robot name: ", self.urdf_root.get("name"))
         print("root link name: ", self.root_name)
         print(" connections: (sorting by ", link_sorting, ")")
         print(" (format: ", body_entry.describe_connection_format(), ")")
-
-        # initialize the buffer with those/ that directly under the root link
-        buffer = deque(table[self.root_name]) # list[str]
-        while len(buffer) > 0:
-            # visit this link
-            this_link_name = buffer.pop()
-            this_link_entry = self.links[this_link_name]
+        for link_name in self.gen_sorted_list_topdown(method=link_sorting):
+            this_link_entry = self.links[link_name]
             print("  ", this_link_entry.describe_connection())
             if show_SE3:
                 print("   X_ParentJoint =")
                 print(this_link_entry.X_ParentJoint)
-
-            # expand this link's descendence
-            if self.is_leaf_link(this_link_name):
-                continue
-            for child_link_name in table[this_link_name]:
-                if link_sorting == 'depth_first':
-                    buffer.append(child_link_name)
-                elif link_sorting == 'breadth_first':
-                    buffer.appendleft(child_link_name)
-                else:
-                    raise NotImplementedError()
