@@ -157,6 +157,7 @@ class kinematic_tree:
         for joint_elem in urdf_root.findall("joint"):
             link_name = joint_elem.find("child").get("link")
             assert link_name not in self.links.keys(), "Link ["+link_name+"] should only have one parent joint but found 2."
+            child_link_elem_found = False
             for link_elem in list_link_elems:
                 if link_elem.get("name") == link_name:
                     self.links[link_name] = body_entry(
@@ -164,7 +165,9 @@ class kinematic_tree:
                         this_link_elem = link_elem
                     )
                     list_link_elems.remove(link_elem) # to speed up
+                    child_link_elem_found = True
                     break # goto processing the next joint
+            if not child_link_elem_found:
                 raise ValueError(f"Joint [{joint_elem.get('name')}] says its child link is '{link_name}', which is not found/ has already been claimed by any child link")
     
     def get_children_entries(self, link_name: str) -> list[body_entry]:
