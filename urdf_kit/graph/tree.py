@@ -202,11 +202,19 @@ class kinematic_tree:
     def gen_sorted_list_topdown(self, method='depth_first') -> iter[str]:
         """
         Notice that the root element will never be returned.
+
+        You should avoid refrain from calling this function 
+        while altering the kinematic tree topology.
+        TODO implement handling of such edge case?
         """
         assert isinstance(method,str)
         assert method in kinematic_tree._sorting_method
 
         table = calc_descendent_adjacency(self.urdf_root)
+        if len(table) == 0:
+            print("  This robot [", self.urdf_root.get("name"),"] has just 1 link so nothing to traverse")
+            assert len(self.links) == 1, "Should be exact one link, maybe some bug leading inconsistence between this manager object and the underlying XML data?"
+            return
         # initialize the buffer with those/ that directly under the root link
         buffer = deque(table[self.root_name]) # list[str]
         while len(buffer) > 0:
