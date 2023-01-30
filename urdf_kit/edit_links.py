@@ -91,3 +91,30 @@ def purge_nonprimitive_collision_geom(urdf_root: ET.ElementTree, whitelist: list
                 if mesh_filename[:-4] not in whitelist:
                     print("  - discarded: ", mesh_filename, " of Link [", elem_link.get("name"), "]")
                     elem_link.remove(elem_collision)
+def add_link_appearance_in_gazebo(urdf_root: ET.Element, linkName: str, material: str) -> None:
+    """Add Gazebo-specific appearance to a link 
+    
+    Remarks:
+        1. By default (i.e. not specifying anything), 
+           all bodies of your robot will look plain white ('Gazebo/White') in Gazebo
+        2. Such gazebo-specific information shall NOT be injected to the "regular" URDF counterpart.
+           i.e. Appearance of the link in Gazebo is independent of the URDF appearance, 
+           where the latter must be of a (monochrome) color.
+    
+    Args:
+        urdf_root (ET.ElementTree)
+        linkName (str)
+            will be put into the "reference" attribute AS-IS
+        material (str)
+            technically can be any string, off-the-shelf textures are Gazebo/Black, etc. 
+            See https://github.com/gazebosim/gazebo-classic/blob/master/media/materials/scripts/gazebo.material
+            for more off-the-shelf examples
+        
+    References:
+        https://classic.gazebosim.org/tutorials?tut=ros_urdf&cat=connect_ros
+    """
+    assert isinstance(linkName, str)
+    assert isinstance(material, str)
+    gz_elem = ET.SubElement(urdf_root, 'gazebo', attrib={'reference': linkName})
+    material_elem = ET.SubElement(gz_elem, 'material')
+    material_elem.text = material

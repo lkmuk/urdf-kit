@@ -2,6 +2,7 @@ import pytest
 from pathlib import Path
 from urdf_kit.misc import print_urdf
 from urdf_kit.edit_links import rename_link, grab_link_elem_by_name, grab_elems_dict_by_joint_name
+from urdf_kit.edit_links import add_link_appearance_in_gazebo
 from xml.etree import ElementTree as ET
 
 @pytest.fixture(scope="function")
@@ -60,3 +61,14 @@ def test_rename(dummy_urdf_root):
     print("\n\n========= after ============== ")
     print_urdf(root)
 
+def test_add_link_appearance_in_gazebo():
+    dummy_root = ET.Element("robot")
+    add_link_appearance_in_gazebo(dummy_root, linkName="my_Link", material="Gazebo/Blue")
+
+    string_result = ET.tostring(dummy_root).decode()
+    string_expected = '<robot><gazebo reference="my_Link"><material>Gazebo/Blue</material></gazebo></robot>'
+    assert string_result == string_expected
+
+if __name__ == "__main__":
+    # test_add_link_appearance_in_gazebo()
+    pass
