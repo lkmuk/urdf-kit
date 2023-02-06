@@ -4,4 +4,5 @@ from ..maths import get_X_JointChild, get_X_ParentJoint, write_origin, get_origi
 from ..maths.inertial import body_inertial_urdf
 from ..misc import remove_subelement_by_tag
 from . import simplify
+from . import params
 from . import tree
