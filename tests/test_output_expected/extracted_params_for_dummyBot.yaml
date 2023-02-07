@@ -1,0 +1,20 @@
+robot_name: dummy
+joints:
+- joint_name: eta1
+  home_pose:
+  - [1.0, 0.0, 0.0, 0.0]
+  - [0.0, 1.0, 0.0, 0.0]
+  - [0.0, 0.0, 1.0, 0.0]
+  - [0.0, 0.0, 0.0, 1.0]
+  screw_axis: [1, 0, 0, 0, 0, 1]
+  parent_link_name: base
+  child_link_name: link1
+- joint_name: eta2
+  home_pose:
+  - [1.0, 0.0, 0.0, 0.0]
+  - [0.0, 1.0, 0.0, 0.0]
+  - [0.0, 0.0, 1.0, 0.0]
+  - [0.0, 0.0, 0.0, 1.0]
+  screw_axis: [1, 0, 0, 0, 0, 1]
+  parent_link_name: link1
+  child_link_name: link2
