@@ -72,7 +72,7 @@ class joint_body_dynamics_param(joint_body_kinematics_param):
     mass: float
     inertia: union[list[list[float]], np.ndarray] # not the most efficient but simplify the implementation
     def __post_init__(self):
-        assert self.m > 1e-4
+        assert self.mass > 1e-4
         self.inertia = _handle_polymorphic_matrix(self.inertia, 3, 3)
         # TODO check symmetry, positive definiteness?
 
