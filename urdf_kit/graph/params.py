@@ -2,6 +2,8 @@ from __future__ import annotations
 from . import body_inertial_urdf
 import numpy as np
 import dataclasses
+import yaml # for stream output/ dumping
+
 
 """
 This module defines some data formats that are not really URDF-specific
@@ -19,21 +21,19 @@ Reference: The "Modern Robotics" textbook
 At the moment, this format assumes each joint has only 1-DoF.
 """
 
-def _handle_polymorphic_vector(data, expected_sz: int) -> list[float]:
+def _handle_polymorphic_array(data, expected_shape: tuple[int], keep_threshold: float =1e-5) -> list:
+    assert keep_threshold >= 0
+    assert isinstance(expected_shape, (int, tuple))
     if isinstance(data, np.ndarray):
-        assert data.shape == (expected_sz,)
-        return data.tolist()
+        assert data.shape == expected_shape
     else:
-        assert np.array(data).shape == (expected_sz,)
-        return list(data) # just in case, it's a tuple, which will cause a pytest to fail
-def _handle_polymorphic_matrix(data, expected_num_rows: int, expected_num_cols: int) -> list[list[float]]:
-    if isinstance(data, np.ndarray):
-        assert data.ndim == 2
-        assert data.shape == (expected_num_rows, expected_num_cols)
-        return data.tolist()
-    else:
-        assert np.array(data).shape == (expected_num_rows, expected_num_cols)
-        return data
+        assert np.array(data).shape == expected_shape
+        data = np.array(data)
+    mask = np.abs(data) < keep_threshold
+    data[mask] = 0
+    return data.tolist()
+def _nice_printout(data: dict) -> str:
+    return yaml.safe_dump(data, sort_keys=False, default_flow_style=None) # tested on Python 3.9 and Pyyaml 6.0
 
 
 @dataclasses.dataclass
@@ -59,10 +59,15 @@ class joint_body_kinematics_param:
     parent_link_name: str
     child_link_name: str
     def __post_init__(self):
-        self.home_pose = _handle_polymorphic_matrix(self.home_pose, 4,4)
-        self.screw_axis = _handle_polymorphic_vector(self.screw_axis, 6)
+        self.home_pose = _handle_polymorphic_array(self.home_pose, (4,4), keep_threshold=1e-6)
+        self.screw_axis = _handle_polymorphic_array(self.screw_axis, (6,), keep_threshold=1e-6)
     def as_dict(self) -> dict:
         return dataclasses.asdict(self)
+    def __repr__(self) -> dict:
+        """
+        the default one can be hard to inspect, hence this override function
+        """
+        return _nice_printout(self.as_dict())
 
 @dataclasses.dataclass
 class joint_body_dynamics_param(joint_body_kinematics_param):
@@ -72,8 +77,9 @@ class joint_body_dynamics_param(joint_body_kinematics_param):
     mass: float
     inertia: union[list[list[float]], np.ndarray] # not the most efficient but simplify the implementation
     def __post_init__(self):
+        super().__post_init__() # <------ don't forget this bit
         assert self.mass > 1e-4
-        self.inertia = _handle_polymorphic_matrix(self.inertia, 3, 3)
+        self.inertia = _handle_polymorphic_array(self.inertia, (3, 3),1e-9)
         # TODO check symmetry, positive definiteness?
 
 @dataclasses.dataclass
@@ -95,5 +101,13 @@ class robot_dynamics():
         else:
             assert self.base_mass > 1e-4
             self.base_inertia = _handle_polymorphic_matrix(self.base_inertia, 3, 3)
+    @property
+    def base_is_mobile(self) -> bool:
+        return self.base_mass is not None
     def as_dict(self) -> dict:
         return dataclasses.asdict(self)
+    def __repr__(self) -> str:
+        """
+        the default one can be hard to inspect, hence this override function
+        """
+        return _nice_printout(self.as_dict())

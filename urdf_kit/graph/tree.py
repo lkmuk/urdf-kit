@@ -1,13 +1,31 @@
 from __future__ import annotations
 from xml.etree.ElementTree import Element
+import numpy as np
 from spatialmath import SE3
 from collections import deque
+from dataclasses import dataclass
 
-from . import get_X_ParentJoint, get_origin, write_origin
-from . import grab_all_joints, grab_link_elem_by_name
+from . import get_X_ParentJoint, get_X_CparentCchild, get_origin, write_origin
+from . import grab_all_joints, grab_link_elem_by_name, floatList_from_vec3String
 from .simplify import fix_revolute_joint
 from . import body_inertial_urdf
+from .params import joint_body_kinematics_param, robot_kinematics
+from .params import joint_body_dynamics_param, robot_dynamics
 from .. import color_code
+
+"""
+Unlike the `edit_xxxx` modules,
+this submodule explicitly consider the kinematic tree.
+The classes and functions in this submodule analyze/ modify the kinematic tree.
+Under the hood, they perform appropriate actions on the underlying XML data, 
+e.g. modification, deletion, ...
+
+
+Such additioan layer of abstraction is helpful for 
+* multibody kinematics/ dynamics computation and
+* modifying the topology of the graph (e.g. when fusing joints).
+
+"""
 
 def calc_descendent_adjacency(urdf_root: Element) -> dict[list[str]]:
     """recompute the adjacency from scratch
@@ -44,67 +62,63 @@ def get_root_link_name(urdf_root: Element) -> str:
     assert len(root_link_name_candidates) == 1, f"but got {len(root_link_name_candidates)} 'root' link(s)"
     return list(root_link_name_candidates)[0]
 
+@dataclass
 class body_entry:
-    def __init__(self, joint_elem: Element, this_link_elem: Element):
-        """building block of a kinematic tree (for non-root links)
-
-        Tips
-        -------------
-        Add a world link element for mobile robots
-        
-        Parameters
-        -----------------
-        * joint_elem: Element
-          the joint that "owns" this body, leave it as None for the root link
-        * this_link_elem: Element
-          The child link of the joint. This is the subject of this entry.
-
-        Notes
-        -------------
-        Due to the kinematic tree structure of URDF,
-        each link (except the root link) has exactly 
-        one unique joint that "owns" it.
-
-        A network view is needed for kinematics/ dynamics
-        also for modifying the topology of the graph (e.g. when fusing joints).
-
-        This class associates the bipartite graph 
-        to the parsed xml elements, 
-        which contain further data.
-        """
-        assert joint_elem.tag == "joint"
-        assert this_link_elem.tag == "link"
-        assert joint_elem.find("child").get("link") == this_link_elem.get("name")
-        self.joint_elem = joint_elem
-        self.this_link_elem = this_link_elem
+    """building block of a kinematic tree (for non-root links)
     
+    Notes
+    -------------
+    Due to the kinematic tree structure of URDF,
+    each link (except the root link) has exactly 
+    one unique joint that "owns" it.
+
+    """
+    joint_elem: Element # the joint that "owns" this body
+    this_link_elem: Element # the child link
+    parent_link_elem: Element
+    def __post_init__(self):
+        assert self.joint_elem.tag == "joint"
+        assert self.this_link_elem.tag == "link"
+        assert self.parent_link_elem.tag == "link"
+        assert self.joint_elem.find("child").get("link") == self.this_link_elem.get("name")
+        assert self.joint_elem.find("parent").get("link") == self.parent_link_elem.get("name")
     def __str__(self):
-        return self.this_link_elem.get("name")
+        return self.childLink_name
+    @property
+    def joint_name(self):
+        return self.joint_elem.get("name")
+    @property
+    def parentLink_name(self):
+        return self.joint_elem.find("parent").get("link")
+    @property
+    def childLink_name(self):
+        return self.this_link_elem.get('name')
     def describe_connection(self) -> str:
         """ a more sophisticated printout
         parent --[joint]--> child
         """
         out = color_code['g']
-        out += self.joint_elem.find("parent").get("link")
+        out += self.parentLink_name
         out += color_code['w']
         out += " --["
         out += color_code['o']
-        out += self.joint_elem.get("name")
+        out += self.joint_name
         out += color_code['w']
         out += "]--> "
         out += color_code['g']
-        out += self.this_link_elem.get('name')
+        out += self.childLink_name
         out += color_code['w']
         return out
     @classmethod
     def describe_connection_format(cls) -> str:
         return "parent ---> [ joint ] ---> child link"
-    
+
     @property
     def joint_type(self) -> str:
         return self.joint_elem.get("type")
     def is_fixed_wrt_parent(self) -> bool:
         return self.joint_type == "fixed"
+           
     @property
     def X_ParentJoint(self) -> SE3:
         return get_X_ParentJoint(self.joint_elem)
@@ -113,8 +127,64 @@ class body_entry:
             return get_X_ParentJoint(self.joint_elem)
         else:
             raise NotImplementedError("At the moment, only fixed-type joint. Yours is "+self.joint_type+".")
+    def _get_axis_xyz(self) -> np.ndarray:
+        """
+        return the normalized values [x,y,z] of the rotation axis/ axis of translation
+
+        Do NOT call this function if this joint is fixed!
+        """
+        assert not self.is_fixed_wrt_parent()
+        axis = floatList_from_vec3String(self.joint_elem.find("axis").get("xyz"))
+        axis = np.array(axis).reshape(3)
+        return axis/np.linalg.norm(axis)
+    @property
+    def screwAx_ParentChild_Parent(self) -> np.ndarray:
+        """
+        specifically, this function returns the screw axis 
+        * of the child (URDF) link's motion 
+        * relative to the parent (URDF) link's motion 
+        * expressed in the parent (URDF) link's frame
+
+        Do NOT call this if this joint is fixed!
+
+        (linear part-first notation)
+        """
+        X_ParentJoint = get_X_ParentJoint(self.joint_elem)
+        R_ParentJoint = X_ParentJoint.R
+        ax_Joint = self._get_axis_xyz()
+        ax_Parent = R_ParentJoint@ax_Joint
+        if self.joint_type == "prisimatic":
+            return np.array([*ax_Parent, 0,0,0])
+        elif self.joint_type == "revolute":
+            pos_JointParent_Parent = - X_ParentJoint.t
+            return np.array([*(np.cross(ax_Parent, pos_JointParent_Parent)), *ax_Parent])
+        else:
+            raise ValueError("Shouldn't have called this function! Expect either prismatic/ revolute-typed joint!")
+    @property
+    def screwAx_ParentChild_CParent(self) -> np.ndarray:
+        X_ParentCParent = get_origin(self.parent_link_elem.find("inertial/origin"))
+        X_CParentParent = X_ParentCParent.inv()
+        screwAx_ParentChild_CParent = X_CParentParent.Ad()@ self.screwAx_ParentChild_Parent
+        return screwAx_ParentChild_CParent
+
     def fix_revolute_joint(self, joint_angle: float):
         fix_revolute_joint(self.joint_elem, joint_angle, verbose=True)
+    def extract_names(self) -> dict[str]:
+        return dict(
+            joint_name=self.joint_name, 
+            parent_link_name = self.parentLink_name,
+            child_link_name = self.childLink_name, 
+        )
+    def extract_params_joint_body_kinematics(self) -> joint_body_kinematics_param:
+        raise NotImplementedError()
+    def extract_params_joint_body_dynamics(self) -> joint_body_dynamics_param:
+        inertial_param = body_inertial_urdf(self.this_link_elem)
+        return joint_body_dynamics_param(
+                home_pose = get_X_CparentCchild(self.joint_elem, self.parent_link_elem, self.this_link_elem).data[0], 
+                screw_axis = self.screwAx_ParentChild_CParent, 
+                **self.extract_names(),
+                **inertial_param.get_serializable() # 'mass' and 'inertia'
+            )
 
 # class link_entry(joint_entry_T):
 class kinematic_tree:
@@ -157,12 +227,14 @@ class kinematic_tree:
         for joint_elem in urdf_root.findall("joint"):
             link_name = joint_elem.find("child").get("link")
             assert link_name not in self.links.keys(), "Link ["+link_name+"] should only have one parent joint but found 2."
+            parent_link_elem = grab_link_elem_by_name(self.urdf_root, joint_elem.find("parent").get("link"))
             child_link_elem_found = False
             for link_elem in list_link_elems:
                 if link_elem.get("name") == link_name:
                     self.links[link_name] = body_entry(
                         joint_elem = joint_elem,
-                        this_link_elem = link_elem
+                        this_link_elem = link_elem,
+                        parent_link_elem = parent_link_elem
                     )
                     list_link_elems.remove(link_elem) # to speed up
                     child_link_elem_found = True
@@ -378,4 +450,26 @@ class kinematic_tree:
             self.urdf_root.remove(linkElem_Removee)
             self.urdf_root.remove(jointElem_Removee)
             del self.links[linkName_Removee] # to maintain consistence
-            
+    def extract_kinematics(self) -> robot_kinematics:
+        raise NotImplementedError()
+    def extract_dynamics(self, base_is_mobile = True) -> robot_dynamics:
+        """
+        Assumptions on the graph (by the time of invoking this function)
+        
+        if `base_is_mobile`, the root link is the mobile base,
+        otherwise, the root link is understood as the first!!! link
+        """
+        out = dict()
+        out['robot_name'] = self.urdf_root.get("name")
+        if base_is_mobile:
+            baselink_elem = grab_link_elem_by_name(self.urdf_root, self.root_name)
+            out['base_mass'], out['base_inertia'] = body_inertial_urdf(baselink_elem).get_serializable()
+        else:
+            out['base_mass'], out['base_inertia'] = None, None
+        out['joints'] = []
+        for keys, vals in self.links.items():
+            if keys == self.root_name:
+                continue
+            out['joints'].append(vals.extract_params_joint_body_dynamics())
+        
+        return robot_dynamics(**out)
