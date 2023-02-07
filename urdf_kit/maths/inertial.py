@@ -117,6 +117,13 @@ class body_inertial_urdf:
     def diagonalize(self):
         pass
 
+    def get_serializable(self) -> dict[float, list[list[float]]]:
+        """
+        a numpy array cannot be directly serialized by something like pyyaml.
+        so this helper generate the two data members in the standard formats.
+        """
+        return {'mass': float(self.m), 'inertia': self.I.tolist()}
+
     def writeback(self, as_child: bool):
         assert not self.is_merged, "shouldn't call this function!"
         assert isinstance(as_child, bool), f"got {type(as_child)}"
