@@ -58,8 +58,9 @@ def get_X_CparentCchild(joint_elem: Element, parent_elem: Element, child_elem: E
     2. dynamics algorithm: the home "position" constant (joint angle := 0)
        Sometimes you might want to invert the returned SE3.
 
-    See also edit_links.grab_elems_dict_by_joint_name, you might want it useful 
-    before calling this function.
+    See also `edit_links.grab_elems_dict_by_joint_name`, 
+    you might find it useful before calling this function.
+    
     No checks on whether the given parent and child elements
     are consistent with the joint_elem.
 
