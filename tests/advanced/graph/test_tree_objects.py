@@ -84,6 +84,7 @@ def test_merge_fixed_joints(biped_fixture, whitelist):
 
 if __name__ == "__main__":
     from urdf_kit.misc import format_then_write
+    from time import sleep
 
     test_data = prepare_data_biped()
     my_tree = kinematic_tree(test_data['urdf_root'])
@@ -94,7 +95,7 @@ if __name__ == "__main__":
     my_tree.links['l_lowerleg'].fix_revolute_joint(-pi/2.05)
     my_tree.links['l_foot'].fix_revolute_joint(pi/4)
     my_tree.links['torso'].fix_revolute_joint(0.0)
-    outfile_path = (test_data['urdf_filepath']/'..'/'reduced.urdf').resolve()
+    outfile_path = (test_data['urdf_filepath']/'..'/'..'/'test_output_expected'/'biped2d_reduced.urdf').resolve()
     # format_then_write(my_tree.urdf_root, outfile_path)
     # my_tree.merge_fixed_joints(link_whitelist=['happy']) # invalid link name exception
     # my_tree.merge_fixed_joints(link_whitelist=['l_foot','torso'])
@@ -107,8 +108,12 @@ if __name__ == "__main__":
     p.connect(p.GUI)
     # robot_original_ID = p.loadURDF(str(test_data['urdf_filepath']))
     robot_reduced_ID = p.loadURDF(str(outfile_path))
-    # just to block the control flow.
-    prompt = "Are you happy? Type yes to exit: "
+    # Exit only when the user agrees.
+    #
+    # let's sleep for a while. 
+    # Otherwise, the connection info will probably clutter the prompt below
+    sleep(3) 
+    prompt = "Are you happy? Type yes or close the GUI window to exit: "
     ans = ""
     while ans not in ('yes', 'y','Y'):
         ans = input(prompt)
