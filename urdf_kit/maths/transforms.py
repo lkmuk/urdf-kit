@@ -25,10 +25,13 @@ def get_origin(origin_elem: Element) -> SE3:
 
     See also `write_origin`
     """
-    assert origin_elem is not None
-    origin_elem_xyz = floatList_from_vec3String(origin_elem.get("xyz"))
-    origin_elem_rpy = floatList_from_vec3String(origin_elem.get("rpy"))
-    return SE3.Trans(origin_elem_xyz)@SE3.RPY(origin_elem_rpy, unit='rad', order='zyx')
+    if origin_elem is None:
+        return SE3.Tx(0)
+    else:
+        assert origin_elem.tag == "origin"
+        origin_elem_xyz = floatList_from_vec3String(origin_elem.get("xyz"))
+        origin_elem_rpy = floatList_from_vec3String(origin_elem.get("rpy"))
+        return SE3.Trans(origin_elem_xyz)@SE3.RPY(origin_elem_rpy, unit='rad', order='zyx')
 
 def _get_axis_xyz(joint_elem: Element) -> np.ndarray:
     """

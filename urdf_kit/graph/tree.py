@@ -1,5 +1,6 @@
 from __future__ import annotations
 from xml.etree.ElementTree import Element
+from xml.etree import ElementTree as ET
 import numpy as np
 from spatialmath import SE3
 from collections import deque
@@ -408,8 +409,10 @@ class kinematic_tree:
                 # 1. update the pose accordingly
                 originElem = geomElem_Removee.find("origin")
                 if originElem is None:
+                    # TODO --- test this branch
                     # URDF spec: <origin> is optional for <visual> and <collision> 
                     X_RemoveeGeom = SE3.Tx(0) # identity 
+                    originElem = ET.SubElement(geom_elem, "origin")
                 else:
                     X_RemoveeGeom = get_origin(originElem)
                 X_NewparentGeom = X_NewparentRemovee @ X_RemoveeGeom
