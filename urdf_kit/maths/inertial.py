@@ -58,7 +58,7 @@ class body_inertial_urdf:
                 raise ValueError("Inertial subelement not found in the given link element!")
             self.X_LinkCom = get_origin(self._inertial_elem.find("origin"))
             self.m = float( self._inertial_elem.find("mass").get("value") )
-            assert self.m > 1e-5, f"got {self.m} kg"
+            assert self.m > 1e-12, f"got {self.m} kg"
             self.I = body_inertial_urdf.inertia_urdf_to_np_array(self._inertial_elem.find("inertia"))
             self.validate_inertia()
     

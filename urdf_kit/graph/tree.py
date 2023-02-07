@@ -457,7 +457,8 @@ class kinematic_tree:
         out['robot_name'] = self.urdf_root.get("name")
         if base_is_mobile:
             baselink_elem = grab_link_elem_by_name(self.urdf_root, self.root_name)
-            out['base_mass'], out['base_inertia'] = body_inertial_urdf(baselink_elem).get_serializable()
+            base_inertial = body_inertial_urdf(baselink_elem).get_serializable()
+            out['base_mass'], out['base_inertia'] = base_inertial["mass"], base_inertial["inertia"]
         else:
             out['base_mass'], out['base_inertia'] = None, None
         out['joints'] = []

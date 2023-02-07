@@ -23,12 +23,12 @@ At the moment, this format assumes each joint has only 1-DoF.
 
 def _handle_polymorphic_array(data, expected_shape: tuple[int], keep_threshold: float =1e-5) -> list:
     assert keep_threshold >= 0
-    assert isinstance(expected_shape, (int, tuple))
-    if isinstance(data, np.ndarray):
-        assert data.shape == expected_shape
-    else:
-        assert np.array(data).shape == expected_shape
-        data = np.array(data)
+    assert isinstance(expected_shape, tuple)
+    assert len(expected_shape) in (1,2), "Invalid 'expected shape"
+    data = np.array(data)
+    if len(expected_shape) == 1:
+        data = data.reshape(-1) # just in case
+    assert data.shape == expected_shape
     mask = np.abs(data) < keep_threshold
     data[mask] = 0
     return data.tolist()
@@ -78,7 +78,7 @@ class joint_body_dynamics_param(joint_body_kinematics_param):
     inertia: union[list[list[float]], np.ndarray] # not the most efficient but simplify the implementation
     def __post_init__(self):
         super().__post_init__() # <------ don't forget this bit
-        assert self.mass > 1e-4
+        assert self.mass > 1e-6, f"got {self.mass}"
         self.inertia = _handle_polymorphic_array(self.inertia, (3, 3),1e-9)
         # TODO check symmetry, positive definiteness?
 
@@ -99,8 +99,8 @@ class robot_dynamics():
         if self.base_mass is None:
             self.base_inertia = None
         else:
-            assert self.base_mass > 1e-4
-            self.base_inertia = _handle_polymorphic_matrix(self.base_inertia, 3, 3)
+            assert self.base_mass > 1e-4, f"got {self.base_mass}"
+            self.base_inertia = _handle_polymorphic_array(self.base_inertia, (3, 3))
     @property
     def base_is_mobile(self) -> bool:
         return self.base_mass is not None
