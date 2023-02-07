@@ -30,14 +30,34 @@ def get_origin(origin_elem: Element) -> SE3:
     origin_elem_rpy = floatList_from_vec3String(origin_elem.get("rpy"))
     return SE3.Trans(origin_elem_xyz)@SE3.RPY(origin_elem_rpy, unit='rad', order='zyx')
 
+def _get_axis_xyz(joint_elem: Element) -> np.ndarray:
+    """
+    return the normalized values [x,y,z] of the rotation axis/ axis of translation
+
+    Do NOT call this function if this joint is fixed!
+
+    This function will also handle the edge case where
+    <axis> is not specified in the URDF.
+    In which case, the default is (1,0,0).
+    See https://wiki.ros.org/urdf/XML/joint
+    """
+    assert joint_elem.get("type") != "fixed"
+    axisElem = joint_elem.find("axis")
+    if axisElem is None:
+        return np.array((1,0,0))
+    else:
+        axis = floatList_from_vec3String(axisElem.get("xyz"))
+        axis = np.array(axis).reshape(3)
+        return axis/np.linalg.norm(axis)
 def get_X_JointChild(joint_elem: Element , joint_angle: float) -> SE3:
     """compute the SE3 of the child link w.r.t. its parent joint
     """
-    joint_ax_elem = joint_elem.find("axis")
-    joint_ax_xyz = np.array(floatList_from_vec3String(joint_ax_elem.get("xyz")))
-    axis_norm = np.linalg.norm(joint_ax_xyz) 
-    assert abs(1-axis_norm) < 1e-10, f"Axis for joint [{joint_elem.get('name')}] not normalized (l2 norm = {axis_norm})!"   
-    return SE3.AngleAxis(theta=joint_angle, v=joint_ax_xyz, unit='rad')
+    if joint_elem.get("type") == "fixed":
+        return SE3.Tx(0)
+    elif joint_elem.get("type") in ("continuous","revolute"):
+        return SE3.AngleAxis(theta=joint_angle, v=_get_axis_xyz(joint_elem), unit='rad')
+    else: 
+        raise NotImplementedError("Prismatic joint not supported yet.")
 
 def get_X_ParentJoint(joint_elem: Element ) -> SE3:
     """compute the SE3 of the joint link w.r.t. the parent link

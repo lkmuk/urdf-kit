@@ -6,7 +6,7 @@ from collections import deque
 from dataclasses import dataclass
 
 from . import get_X_ParentJoint, get_X_CparentCchild, get_origin, write_origin
-from . import grab_all_joints, grab_link_elem_by_name, floatList_from_vec3String
+from . import grab_all_joints, grab_link_elem_by_name, floatList_from_vec3String, _get_axis_xyz
 from .simplify import fix_revolute_joint
 from . import body_inertial_urdf
 from .params import joint_body_kinematics_param, robot_kinematics
@@ -127,16 +127,7 @@ class body_entry:
             return get_X_ParentJoint(self.joint_elem)
         else:
             raise NotImplementedError("At the moment, only fixed-type joint. Yours is "+self.joint_type+".")
-    def _get_axis_xyz(self) -> np.ndarray:
-        """
-        return the normalized values [x,y,z] of the rotation axis/ axis of translation
 
-        Do NOT call this function if this joint is fixed!
-        """
-        assert not self.is_fixed_wrt_parent()
-        axis = floatList_from_vec3String(self.joint_elem.find("axis").get("xyz"))
-        axis = np.array(axis).reshape(3)
-        return axis/np.linalg.norm(axis)
     @property
     def screwAx_ParentChild_Parent(self) -> np.ndarray:
         """
@@ -151,7 +142,7 @@ class body_entry:
         """
         X_ParentJoint = get_X_ParentJoint(self.joint_elem)
         R_ParentJoint = X_ParentJoint.R
-        ax_Joint = self._get_axis_xyz()
+        ax_Joint = _get_axis_xyz(self.joint_elem)
         ax_Parent = R_ParentJoint@ax_Joint
         if self.joint_type == "prisimatic":
             return np.array([*ax_Parent, 0,0,0])
